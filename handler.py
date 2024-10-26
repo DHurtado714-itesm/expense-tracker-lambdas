@@ -81,14 +81,6 @@ class NotionManager:
             "Content-Type": "application/json",
             "Notion-Version": "2022-06-28",
         }
-        self.databases = {
-            "expenses": os.getenv("NOTION_DB_ID_EXPENSES"),
-            "incomes": os.getenv("NOTION_DB_ID_INCOMES"),
-        }
-        self.databases_url = {
-            "expenses": f"https://api.notion.com/v1/databases/{self.databases['expenses']}",
-            "incomes": f"https://api.notion.com/v1/databases/{self.databases['incomes']}",
-        }
         self.page_url = "https://api.notion.com/v1/pages"
         self.exchange_rate = ExchangeeRate()
         self.today_iso = datetime.now().date().isoformat()
@@ -104,53 +96,41 @@ class NotionManager:
 
         return amount / currency_rate
 
-    def get_expense(self):
-        body: dict = {
-            "filter": {
-                "or": [
-                    {
-                        "property": "Transaction Date",  # TODO: Change to the actual property name
-                        "date": {"equals": self.today_iso},
-                    }
-                ]
-            }
-        }
+    def get_data(self, database_id: str, properties: dict, filter_body: dict) -> list:
+        """
+        Fetches data from a specified Notion database with a filter.
 
-        print(body)
+        Args:
+            database_id (str): The ID of the Notion database to query.
+            properties (dict): The properties to retrieve, with their types.
+            filter_body (dict): The filter body for the query.
 
-        response = requests.post(
-            f"{self.databases_url["expenses"]}/query", headers=self.headers, json=body
-        )
+        Returns:
+            list: A list of dictionaries with the specified properties.
+        """
+        url = f"https://api.notion.com/v1/databases/{database_id}/query"
+        response = requests.post(url, headers=self.headers, json=filter_body)
 
         if response.status_code == 200:
             data = response.json()
-
-            return map_properties_from_notion_response(
-                data,
-                {
-                    "id": NotionProperties.ID,
-                    "Amount": NotionProperties.NUMBER,
-                    "Currency": NotionProperties.SELECT,
-                },
-            )
+            return map_properties_from_notion_response(data, properties)
         else:
-            raise Exception("Failed to fetch expenses")
+            raise Exception(f"Failed to fetch data from database {database_id}")
 
-    def get_income(self):
-        pass
+    def update_page(self, entry_id: str, properties: dict):
+        """
+        Updates properties for a specific Notion page.
 
-    def update_expense(self, entry_id: str, usd_equivalent: float):
-        """Updates the USD Equivalent field for a specific expense entry."""
+        Args:
+            entry_id (str): The ID of the Notion page to update.
+            properties (dict): The properties and their values to update.
+        """
         url = f"{self.page_url}/{entry_id}"
-        update_body = {"properties": {"USD equivalent": {"number": usd_equivalent}}}
+        update_body = {"properties": properties}
 
         response = requests.patch(url, headers=self.headers, json=update_body)
         if response.status_code != 200:
-            raise Exception(
-                f"Failed to update USD Equivalent for entry {entry_id}: {response.text}"
-            )
-
-        print(f"Updated entry {entry_id} with USD Equivalent: {usd_equivalent}")
+            raise Exception(f"Failed to update page {entry_id}: {response.text}")
 
     def update_expenses(self):
         expenses = self.get_expense()
@@ -160,10 +140,33 @@ class NotionManager:
                 expense["Amount"], expense["Currency"]
             )
             if usd_equivalent is not None:
-                self.update_expense(expense["id"], usd_equivalent)
+                self.update_page(expense["id"], usd_equivalent)
 
-    def update_incomes(self):
-        pass
+    def update_pages(
+        self,
+        database_id: str,
+        properties_to_retrieve: dict,
+        filter_body: dict,
+        update_field: str,
+    ):
+        """
+        Fetches data from a Notion database, calculates USD equivalent, and updates pages.
+
+        Args:
+            database_id (str): The ID of the Notion database.
+            properties_to_retrieve (dict): The properties to retrieve, with their types.
+            filter_body (dict): The filter body for querying.
+            update_field (str): The name of the field to update with the calculated value.
+        """
+        pages = self.get_data(database_id, properties_to_retrieve, filter_body)
+
+        for page in pages:
+            amount = page.get("Amount")
+            currency = page.get("Currency")
+            if amount is not None and currency:
+                usd_equivalent = self.calculate_usd_equivalent(amount, currency)
+                update_properties = {update_field: {"number": usd_equivalent}}
+                self.update_page(page["id"], update_properties)
 
 
 def hello(event, context):
@@ -188,7 +191,31 @@ def hello(event, context):
 
 def main():
     notion_manager = NotionManager()
-    print(notion_manager.update_expenses())
+
+    database_id = os.getenv("NOTION_DB_ID_EXPENSES")  # Replace with actual database ID
+    properties_to_retrieve = {
+        "id": NotionProperties.ID,
+        "Amount": NotionProperties.NUMBER,
+        "Currency": NotionProperties.SELECT,
+    }
+    filter_body = {
+        "filter": {
+            "or": [
+                {
+                    "property": "Transaction Date",
+                    "date": {"equals": notion_manager.today_iso},
+                }
+            ]
+        }
+    }
+
+    # Update pages in the database
+    notion_manager.update_pages(
+        database_id=database_id,
+        properties_to_retrieve=properties_to_retrieve,
+        filter_body=filter_body,
+        update_field="USD equivalent",  # The name of the property to update in Notion
+    )
 
 
 if __name__ == "__main__":
