@@ -132,16 +132,6 @@ class NotionManager:
         if response.status_code != 200:
             raise Exception(f"Failed to update page {entry_id}: {response.text}")
 
-    def update_expenses(self):
-        expenses = self.get_expense()
-
-        for expense in expenses:
-            usd_equivalent = self.calculate_usd_equivalent(
-                expense["Amount"], expense["Currency"]
-            )
-            if usd_equivalent is not None:
-                self.update_page(expense["id"], usd_equivalent)
-
     def update_pages(
         self,
         database_id: str,
@@ -161,62 +151,15 @@ class NotionManager:
         pages = self.get_data(database_id, properties_to_retrieve, filter_body)
 
         for page in pages:
-            amount = page.get("Amount")
-            currency = page.get("Currency")
+            amount = page.get("Local Amount")
+            currency = page.get("Currencies")
+
             if amount is not None and currency:
-                usd_equivalent = self.calculate_usd_equivalent(amount, currency)
+                if currency and "USD" in currency:
+                    # If the currency is in USD, use the amount directly
+                    usd_equivalent = amount
+                else:
+                    usd_equivalent = self.calculate_usd_equivalent(amount, currency)
+
                 update_properties = {update_field: {"number": usd_equivalent}}
                 self.update_page(page["id"], update_properties)
-
-
-def hello(event, context):
-    body = {
-        "message": "Go Serverless v1.0! Your function executed successfully!",
-        "input": event,
-    }
-
-    response = {"statusCode": 200, "body": json.dumps(body)}
-
-    return response
-
-    # Use this code if you don't use the http event with the LAMBDA-PROXY
-    # integration
-    """
-    return {
-        "message": "Go Serverless v1.0! Your function executed successfully!",
-        "event": event
-    }
-    """
-
-
-def main():
-    notion_manager = NotionManager()
-
-    database_id = os.getenv("NOTION_DB_ID_EXPENSES")  # Replace with actual database ID
-    properties_to_retrieve = {
-        "id": NotionProperties.ID,
-        "Amount": NotionProperties.NUMBER,
-        "Currency": NotionProperties.SELECT,
-    }
-    filter_body = {
-        "filter": {
-            "or": [
-                {
-                    "property": "Transaction Date",
-                    "date": {"equals": notion_manager.today_iso},
-                }
-            ]
-        }
-    }
-
-    # Update pages in the database
-    notion_manager.update_pages(
-        database_id=database_id,
-        properties_to_retrieve=properties_to_retrieve,
-        filter_body=filter_body,
-        update_field="USD equivalent",  # The name of the property to update in Notion
-    )
-
-
-if __name__ == "__main__":
-    main()
