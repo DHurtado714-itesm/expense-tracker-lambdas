@@ -4,13 +4,15 @@ import os
 import requests
 from enum import Enum
 
-from exchange_rate_provider import ExchangeRate
+from src.libs.exchange_rate_provider import ExchangeRate
+from src.repository.exchange_rate_repository import ExchangeRateRepository
 
 
 class NotionProperties(Enum):
     ID = "id"
     NUMBER = "number"
     SELECT = "select"
+    DATE = "date"
 
 
 def map_properties_from_notion_response(response: dict, properties: dict) -> list:
@@ -38,6 +40,8 @@ def map_properties_from_notion_response(response: dict, properties: dict) -> lis
             elif property_type == NotionProperties.SELECT:
                 # Extract the name from select
                 entry[property_name] = property_data.get("select", {}).get("name")
+            elif property_type == NotionProperties.DATE:
+                entry[property_name] = property_data.get("date", {}).get("start")
 
         # Only append entries with at least one property value
         if entry:
@@ -56,16 +60,19 @@ class NotionManager:
         }
         self.page_url = "https://api.notion.com/v1/pages"
         self.exchange_rate = ExchangeRate()
-        self.today_iso = datetime.now().date().isoformat()
+        self.exchange_rate_repository = ExchangeRateRepository(
+            os.getenv("EXCHANGE_RATE_TABLE_NAME", "ExchangeRate")
+        )
 
-    def calculate_usd_equivalent(self, amount: float, currency: str) -> float:
-        rates = self.exchange_rate.fetch_data()
+    def calculate_usd_equivalent(self, amount: float, currency: str, date: str) -> float:
+        rate = self.exchange_rate_repository.get_exchange_rate_by_currency(
+            date, currency
+        )
 
-        currency_pair = f"{currency.upper()}/USD"
-        currency_rate = rates.get(currency_pair)
-
-        if currency_rate is None:
+        if rate is None:
             raise ValueError(f"No exchange rate found for currency: {currency}")
+
+        currency_rate = float(rate)
 
         return amount / currency_rate
 
@@ -126,13 +133,39 @@ class NotionManager:
         for page in pages:
             amount = page.get("Local Amount")
             currency = page.get("Currencies")
+            page_date = page.get("Date")
 
-            if amount is not None and currency:
+            if amount is not None and currency and page_date:
                 if currency and "USD" in currency:
                     # If the currency is in USD, use the amount directly
                     usd_equivalent = amount
                 else:
-                    usd_equivalent = self.calculate_usd_equivalent(amount, currency)
+                    usd_equivalent = self.calculate_usd_equivalent(
+                        amount, currency, page_date
+                    )
 
                 update_properties = {update_field: {"number": usd_equivalent}}
                 self.update_page(page["id"], update_properties)
+
+
+if __name__ == "__main__":
+    notion_manager = NotionManager()
+    database_id = "12a88509f38d814ea53ed9bec54099ff"
+    properties_to_retrieve = {
+        "Local Amount": NotionProperties.NUMBER,
+        "Currencies": NotionProperties.SELECT,
+        "Date": NotionProperties.DATE,
+    }
+    filter_body = {
+        "filter": {
+            "property": "Amount",
+            "number": {
+                "is_empty": True,
+            },
+        }
+    }
+    update_field = "Amount"
+
+    notion_manager.update_pages(
+        database_id, properties_to_retrieve, filter_body, update_field
+    )
