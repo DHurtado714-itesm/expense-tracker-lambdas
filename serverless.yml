@@ -22,5 +22,10 @@ functions:
     events:
       - schedule: rate(1 day)
 
+  createExchangeRateEntry:
+    handler: create_exchange_rate_entry_handler.create_exchange_rate_entry_handler
+    events:
+      - schedule: rate(1 day)
+
 plugins:
   - serverless-python-requirements
