@@ -1,5 +1,5 @@
 import os
-from handler import NotionManager, NotionProperties
+from src.libs.notion_manager_provider import NotionManager, NotionProperties
 
 
 def update_income_handler(event, context):
@@ -10,15 +10,15 @@ def update_income_handler(event, context):
         "id": NotionProperties.ID,
         "Local Amount": NotionProperties.NUMBER,
         "Currencies": NotionProperties.SELECT,
+        "Date": NotionProperties.DATE,
+        "Amount": NotionProperties.NUMBER,
     }
     filter_body = {
         "filter": {
-            "or": [
-                {
-                    "property": "Date",
-                    "date": {"equals": notion_manager.today_iso},
-                }
-            ]
+            "property": "Amount",
+            "number": {
+                "is_empty": True,
+            },
         }
     }
 

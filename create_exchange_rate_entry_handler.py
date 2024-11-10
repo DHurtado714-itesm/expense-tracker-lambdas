@@ -1,8 +1,8 @@
 import os
 
-from exchange_rate_entity import ExchangeRateEntity
-from exchange_rate_provider import ExchangeRate
-from exchange_rate_repository import ExchangeRateRepository
+from src.entity.exchange_rate_entity import ExchangeRateEntity
+from src.libs.exchange_rate_provider import ExchangeRate
+from src.repository.exchange_rate_repository import ExchangeRateRepository
 
 
 def create_exchange_rate_entry_handler(event, context):
