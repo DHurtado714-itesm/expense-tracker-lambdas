@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from typing import Dict
 
 
@@ -41,8 +42,11 @@ class ExchangeRateEntity:
         """
         Converts the ExchangeRateEntity instance to a dictionary format suitable for DynamoDB.
         """
+
+        rates_decimal = {k: Decimal(str(v)) for k, v in self.rates.items()}
+
         return {
             "Date": self.date,
             "BaseCurrency": self.base_currency,
-            "Rates": self.rates
+            "Rates": rates_decimal,
         }
