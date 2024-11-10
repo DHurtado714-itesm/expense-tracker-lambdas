@@ -64,7 +64,9 @@ class NotionManager:
             os.getenv("EXCHANGE_RATE_TABLE_NAME", "ExchangeRate")
         )
 
-    def calculate_usd_equivalent(self, amount: float, currency: str, date: str) -> float:
+    def calculate_usd_equivalent(
+        self, amount: float, currency: str, date: str
+    ) -> float:
         rate = self.exchange_rate_repository.get_exchange_rate_by_currency(
             date, currency
         )
@@ -146,26 +148,3 @@ class NotionManager:
 
                 update_properties = {update_field: {"number": usd_equivalent}}
                 self.update_page(page["id"], update_properties)
-
-
-if __name__ == "__main__":
-    notion_manager = NotionManager()
-    database_id = "12a88509f38d814ea53ed9bec54099ff"
-    properties_to_retrieve = {
-        "Local Amount": NotionProperties.NUMBER,
-        "Currencies": NotionProperties.SELECT,
-        "Date": NotionProperties.DATE,
-    }
-    filter_body = {
-        "filter": {
-            "property": "Amount",
-            "number": {
-                "is_empty": True,
-            },
-        }
-    }
-    update_field = "Amount"
-
-    notion_manager.update_pages(
-        database_id, properties_to_retrieve, filter_body, update_field
-    )
