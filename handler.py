@@ -54,7 +54,7 @@ def map_properties_from_notion_response(response: dict, properties: dict) -> lis
     return results
 
 
-class ExchangeeRate:
+class ExchangeRate:
     def __init__(self) -> None:
         self.base_currency = "USD"
         self.selected_currencies = ["COP", "EUR", "MXN"]
@@ -82,7 +82,7 @@ class NotionManager:
             "Notion-Version": "2022-06-28",
         }
         self.page_url = "https://api.notion.com/v1/pages"
-        self.exchange_rate = ExchangeeRate()
+        self.exchange_rate = ExchangeRate()
         self.today_iso = datetime.now().date().isoformat()
 
     def calculate_usd_equivalent(self, amount: float, currency: str) -> float:
