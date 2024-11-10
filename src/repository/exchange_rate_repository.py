@@ -19,8 +19,6 @@ class ExchangeRateRepository:
         """
         response = self.table.get_item(Key={"Date": date})
 
-        print(response)
-
         return response.get("Item")
 
     def get_exchange_rate_by_currency(self, date: str, currency: str):
@@ -34,7 +32,6 @@ class ExchangeRateRepository:
         Returns:
             float: The exchange rate for the specified currency or None if not found.
         """
-        print(date, currency)
         rates = self.get_exchange_rate_by_date(date)
 
         if rates:
@@ -109,30 +106,3 @@ class ExchangeRateRepository:
                     print(f"Error deleting currency from exchange rate: {e}")
                     return False
         return False
-
-
-if __name__ == "__main__":
-    exchange_rate_repository = ExchangeRateRepository("ExchangeRates")
-
-    # Test get_exchange_rate_by_date
-    print(exchange_rate_repository.get_exchange_rate_by_date("2021-09-01"))
-
-    # Test get_exchange_rate_by_currency
-    print(exchange_rate_repository.get_exchange_rate_by_currency("2021-09-01", "EUR"))
-
-    # Test get_exchange_rate_by_currencies
-    print(
-        exchange_rate_repository.get_exchange_rate_by_currencies(
-            "2021-09-01", ["EUR", "JPY"]
-        )
-    )
-
-    # Test post_exchange_rate
-    exchange_rate = ExchangeRateEntity(
-        date="2021-09-01",
-        rates={"EUR/USD": 1.2, "JPY/USD": 0.009},
-    )
-    print(exchange_rate_repository.post_exchange_rate(exchange_rate))
-
-    # Test delete_exchange_rate
-    print(exchange_rate_repository.delete_exchange_rate("2021-09-01", "JPY"))
