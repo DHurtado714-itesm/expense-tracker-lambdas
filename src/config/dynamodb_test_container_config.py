@@ -1,8 +1,10 @@
+# src/config/dynamodb_test_container_config.py
+
 from testcontainers.core.container import DockerContainer
 import boto3
 
 
-class TestcontainersConfig:
+class DynamoDBTestContainerConfig:
     def __init__(self):
         # Define container settings for DynamoDB Local
         self.container = (
@@ -27,29 +29,21 @@ class TestcontainersConfig:
             aws_secret_access_key="dummy-secret-key",
         )
 
-    def create_test_table(self, table_name, hash_key="id_key", sort_key="sort_key"):
+    def create_test_table(self, table_name, hash_key="Date"):
         """
         Creates a test table in DynamoDB for testing purposes.
 
         Args:
             table_name (str): The name of the table to create.
             hash_key (str): The name of the partition key.
-            sort_key (str): The name of the sort key (optional).
         """
         client = self.create_dynamodb_client()
         client.create_table(
             TableName=table_name,
-            KeySchema=[
-                {"AttributeName": hash_key, "KeyType": "HASH"},
-                {"AttributeName": sort_key, "KeyType": "RANGE"},
-            ],
-            AttributeDefinitions=[
-                {"AttributeName": hash_key, "AttributeType": "S"},
-                {"AttributeName": sort_key, "AttributeType": "S"},
-            ],
+            KeySchema=[{"AttributeName": hash_key, "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": hash_key, "AttributeType": "S"}],
             ProvisionedThroughput={"ReadCapacityUnits": 5, "WriteCapacityUnits": 5},
         )
-        # Wait until the table is fully created
         client.get_waiter("table_exists").wait(TableName=table_name)
         return client
 
