@@ -37,13 +37,12 @@ class ExchangeRateEntity:
             rates=data.get("Rates"),
         )
 
-    @classmethod
-    def to_dict(cls) -> dict:
+    def to_dict(self) -> dict:
         """
         Converts the ExchangeRateEntity instance to a dictionary format suitable for DynamoDB.
         """
         return {
-            "Date": cls.date,
-            "BaseCurrency": cls.base_currency,
-            "Rates": cls.rates,
+            "Date": self.date,
+            "BaseCurrency": self.base_currency,
+            "Rates": self.rates
         }
